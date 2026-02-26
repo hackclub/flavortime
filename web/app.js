@@ -69,6 +69,7 @@ const elements = {
     adultUpdateDismiss: byId('adult-update-dismiss'),
     adultFlatpakWarning: byId('adult-flatpak-warning')
 };
+const IS_WINDOWS_PLATFORM = document.documentElement.classList.contains('platform-windows');
 
 let confirmResolve = null;
 let confirmLastFocused = null;
@@ -417,12 +418,24 @@ async function downloadUpdateAndRender() {
 
     updaterBusy = true;
     updaterDownloadDismissed = false;
-    updaterDownloadPercent = 0;
+    updaterDownloadPercent = null;
     renderDownloadingUpdaterState();
 
     try {
         await invoke('download_update');
         updaterDownloadPercent = 100;
+
+        if (IS_WINDOWS_PLATFORM) {
+            renderUpdaterState({
+                visible: true,
+                tone: 'ready',
+                messageKey: 'updater.installing_windows',
+                showDismiss: true,
+                onDismiss: () => renderUpdaterState({ visible: false })
+            });
+            return;
+        }
+
         renderUpdaterState({
             visible: true,
             tone: 'ready',

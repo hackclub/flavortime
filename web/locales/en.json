@@ -66,6 +66,7 @@
 
     "updater": {
         "downloading": "There is an update available. Downloading...",
+        "installing_windows": "Update downloaded. The Windows installer should launch automatically.",
         "ready": "Restart to update",
         "failed": "Update download failed.",
         "restart_failed": "Restart failed. Please try again.",

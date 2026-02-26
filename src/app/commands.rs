@@ -12,7 +12,7 @@ use crate::services::{
 use serde::Serialize;
 use std::sync::{Mutex, MutexGuard};
 use std::time::{SystemTime, UNIX_EPOCH};
-use tauri::{AppHandle, State};
+use tauri::{AppHandle, Emitter, State};
 use tauri_plugin_autostart::ManagerExt;
 use tauri_plugin_updater::UpdaterExt;
 
@@ -518,8 +518,23 @@ pub async fn download_update(app: AppHandle) -> Result<(), String> {
         .map_err(stringify)?
         .ok_or_else(|| "No update is currently available".to_string())?;
 
+    let progress_app = app.clone();
+    let finish_app = app.clone();
+    let mut downloaded_bytes: u64 = 0;
+
     update
-        .download_and_install(|_, _| {}, || {})
+        .download_and_install(
+            move |chunk_len, content_len| {
+                downloaded_bytes = downloaded_bytes.saturating_add(chunk_len as u64);
+                if let Some(total) = content_len.filter(|value| *value > 0) {
+                    let percent = ((downloaded_bytes as f64 / total as f64) * 100.0).clamp(0.0, 100.0);
+                    let _ = progress_app.emit("updater-download-progress", percent);
+                }
+            },
+            move || {
+                let _ = finish_app.emit("updater-download-finished", 100.0_f64);
+            },
+        )
         .await
         .map_err(stringify)
 }

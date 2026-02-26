@@ -38,6 +38,8 @@ fi
 command -v git >/dev/null 2>&1 || { echo "git is required"; exit 1; }
 command -v gh >/dev/null 2>&1 || { echo "gh is required"; exit 1; }
 command -v cargo >/dev/null 2>&1 || { echo "cargo is required"; exit 1; }
+command -v curl >/dev/null 2>&1 || { echo "curl is required"; exit 1; }
+command -v node >/dev/null 2>&1 || { echo "node is required"; exit 1; }
 
 git rev-parse --is-inside-work-tree >/dev/null 2>&1 || { echo "Run this inside the repo"; exit 1; }
 gh auth status >/dev/null 2>&1 || { echo "Run 'gh auth login' first"; exit 1; }
@@ -153,6 +155,38 @@ done
 if [[ "$(gh release view "$TAG" --json isDraft --jq '.isDraft')" == "true" ]]; then
   gh release edit "$TAG" --draft=false
 fi
+
+latest_endpoint="https://github.com/hackclub/flavortime/releases/download/$TAG/latest.json"
+latest_json="$(curl -fsSL "$latest_endpoint")"
+LATEST_JSON="$latest_json" VERSION="$VERSION" TAG="$TAG" node <<'NODE'
+const data = JSON.parse(process.env.LATEST_JSON);
+const version = process.env.VERSION;
+const tag = process.env.TAG;
+const requiredTargets = [
+  "windows-x86_64-nsis",
+  "windows-x86_64-msi",
+  "darwin-aarch64-app",
+  "darwin-x86_64-app",
+  "linux-x86_64-appimage",
+  "linux-x86_64-deb",
+];
+
+if (data.version !== version) {
+  throw new Error(`latest.json version mismatch: expected ${version}, got ${data.version}`);
+}
+
+for (const target of requiredTargets) {
+  const entry = data.platforms?.[target];
+  if (!entry || typeof entry.url !== "string" || typeof entry.signature !== "string") {
+    throw new Error(`latest.json missing required platform entry: ${target}`);
+  }
+
+  const expected = `/hackclub/flavortime/releases/download/${tag}/`;
+  if (!entry.url.includes(expected)) {
+    throw new Error(`latest.json URL for ${target} does not point at ${tag}: ${entry.url}`);
+  }
+}
+NODE
 
 url="$(gh release view "$TAG" --json url --jq '.url')"
 echo "Release published: $url"
