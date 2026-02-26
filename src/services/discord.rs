@@ -18,6 +18,7 @@ struct Presence {
     project: Option<String>,
     hours: Option<f64>,
     referral: Option<String>,
+    show_referral_button: bool,
     enabled: bool,
     session_start: Option<u64>,
     activity_published: bool,
@@ -109,10 +110,12 @@ impl DiscordPresenceManager {
         project: Option<String>,
         hours: Option<f64>,
         referral: Option<String>,
+        show_referral_button: bool,
     ) {
         self.state.project = project;
         self.state.hours = hours;
         self.state.referral = referral;
+        self.state.show_referral_button = show_referral_button;
         if self.has_activity_payload() {
             self.state.session_start.get_or_insert_with(unix_secs);
         } else {
@@ -225,9 +228,13 @@ impl DiscordPresenceManager {
         }
 
         let text = rich_presence_text();
+        let referral_host = non_empty_trimmed(Some(text.referral_host.as_str()))
+            .unwrap_or("flavortown.hackclub.com");
         let referral_code = non_empty_trimmed(self.state.referral.as_deref());
-        let referral_url =
-            referral_code.map(|code| format!("https://{}/{code}", text.referral_host));
+        let referral_url = match referral_code {
+            Some(code) => format!("https://{referral_host}/{code}"),
+            None => format!("https://{referral_host}"),
+        };
         let project_line = if let Some(name) = self
             .state
             .project
@@ -258,7 +265,7 @@ impl DiscordPresenceManager {
         };
         let state_line = Some(project_line.clone());
         let session_start = self.state.session_start;
-        let show_referral_button = referral_url.is_some();
+        let show_referral_button = self.state.show_referral_button;
         let brand_label = text.brand_label.clone();
         let referral_button = text.referral_button.clone();
         let small_text = if status_tagline.is_empty() {
@@ -295,11 +302,11 @@ impl DiscordPresenceManager {
                 }
 
                 if show_referral_button {
-                    if let Some(url) = referral_url.as_ref() {
-                        next = next.append_buttons(|button| {
-                            button.label(referral_button.clone()).url(url.clone())
-                        });
-                    }
+                    next = next.append_buttons(|button| {
+                        button
+                            .label(referral_button.clone())
+                            .url(referral_url.clone())
+                    });
                 }
 
                 next
@@ -326,7 +333,7 @@ impl DiscordPresenceManager {
         let has_tagline = !rich_presence_text().status_tagline.trim().is_empty();
         let has_project = non_empty_trimmed(self.state.project.as_deref()).is_some();
         let has_hours = self.state.hours.is_some_and(|value| value > 0.0);
-        let has_referral = non_empty_trimmed(self.state.referral.as_deref()).is_some();
+        let has_referral = self.state.show_referral_button;
 
         has_tagline || has_project || has_hours || has_referral
     }

@@ -49,8 +49,8 @@ fn load_rich_presence_text() -> RichPresenceText {
         details_project_prefix: text_or_default(rich_presence.details_project_prefix, "Project: "),
         details_idle: text_or_default(rich_presence.details_idle, "Flavortown"),
         brand_label: text_or_default(rich_presence.brand_label, "Flavortown"),
-        referral_button: text_or_default(rich_presence.referral_button, "Use my referral"),
-        referral_host: text_or_default(rich_presence.referral_host, "flavortown.hack.club"),
+        referral_button: text_or_default(rich_presence.referral_button, "Sign up"),
+        referral_host: text_or_default(rich_presence.referral_host, "flavortown.hackclub.com"),
         time_today_prefix: text_or_default(rich_presence.time_today_prefix, "Today: "),
         time_logged_suffix: text_or_default(rich_presence.time_logged_suffix, " logged"),
         status_tagline: text_or_default(

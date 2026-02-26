@@ -432,9 +432,9 @@ pub async fn refresh_referral_codes(state: State<'_, AppState>) -> Result<Vec<Re
 
 #[tauri::command]
 pub fn init_discord(state: State<AppState>) -> Result<(), String> {
-    let (enabled, referral) = {
+    let (enabled, referral, show_referral_button) = {
         let cfg = lock(&state.config)?;
-        (cfg.app_enabled, cfg.display_code())
+        (cfg.app_enabled, cfg.display_code(), cfg.show_referral_code)
     };
 
     ensure_discord_client(&state.discord)?;
@@ -443,7 +443,7 @@ pub fn init_discord(state: State<AppState>) -> Result<(), String> {
     if let Some(client) = rpc.as_mut() {
         client.maybe_recover();
         client.set_enabled(enabled);
-        client.update(None, None, referral);
+        client.update(None, None, referral, show_referral_button);
     }
     Ok(())
 }
@@ -454,9 +454,14 @@ pub fn update_discord_presence(
     project: Option<String>,
     hours: Option<f64>,
 ) -> Result<(), String> {
-    let (show_time, referral, enabled) = {
+    let (show_time, referral, show_referral_button, enabled) = {
         let cfg = lock(&state.config)?;
-        (cfg.show_time_tracking, cfg.display_code(), cfg.app_enabled)
+        (
+            cfg.show_time_tracking,
+            cfg.display_code(),
+            cfg.show_referral_code,
+            cfg.app_enabled,
+        )
     };
     let hours = if show_time { hours } else { None };
 
@@ -467,7 +472,7 @@ pub fn update_discord_presence(
     let mut rpc = lock(&state.discord)?;
     if let Some(client) = rpc.as_mut() {
         client.maybe_recover();
-        client.update(project, hours, referral);
+        client.update(project, hours, referral, show_referral_button);
     }
     Ok(())
 }
@@ -744,7 +749,7 @@ fn sync_discord(cfg: &Config, rpc: &Mutex<Option<DiscordPresenceManager>>) -> Re
     if let Some(client) = rpc.as_mut() {
         client.set_enabled(cfg.app_enabled);
         client.maybe_recover();
-        client.update(None, None, cfg.display_code());
+        client.update(None, None, cfg.display_code(), cfg.show_referral_code);
     }
     Ok(())
 }
