@@ -37,6 +37,7 @@ fi
 
 command -v git >/dev/null 2>&1 || { echo "git is required"; exit 1; }
 command -v gh >/dev/null 2>&1 || { echo "gh is required"; exit 1; }
+command -v cargo >/dev/null 2>&1 || { echo "cargo is required"; exit 1; }
 
 git rev-parse --is-inside-work-tree >/dev/null 2>&1 || { echo "Run this inside the repo"; exit 1; }
 gh auth status >/dev/null 2>&1 || { echo "Run 'gh auth login' first"; exit 1; }
@@ -95,6 +96,11 @@ tauri_version="$(sed -n 's/^[[:space:]]*"version": "\(.*\)",$/\1/p' tauri.conf.j
 if [[ "$cargo_version" != "$VERSION" || "$tauri_version" != "$VERSION" ]]; then
   echo "Version sync failed"
   exit 1
+fi
+
+# Keep Cargo.lock aligned with the workspace package version bump.
+if ! cargo metadata --format-version 1 --offline >/dev/null 2>&1; then
+  cargo metadata --format-version 1 >/dev/null
 fi
 
 git add Cargo.toml tauri.conf.json Cargo.lock
