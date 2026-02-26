@@ -226,7 +226,6 @@ impl DiscordPresenceManager {
 
         let text = rich_presence_text();
         let referral_code = non_empty_trimmed(self.state.referral.as_deref());
-        let referral_path = referral_code.map(|code| format!("{}/{code}", text.referral_host));
         let referral_url =
             referral_code.map(|code| format!("https://{}/{code}", text.referral_host));
         let project_line = if let Some(name) = self
@@ -252,14 +251,11 @@ impl DiscordPresenceManager {
             .filter(|hours| *hours > 0.0)
             .map(|hours| fmt_hours(hours, text));
         let status_tagline = text.status_tagline.trim();
-        let mut details = if status_tagline.is_empty() {
+        let details = if status_tagline.is_empty() {
             text.details_idle.clone()
         } else {
             status_tagline.to_string()
         };
-        if let Some(path) = referral_path.as_ref() {
-            details = format!("{details}; {path}");
-        }
         let state_line = Some(project_line.clone());
         let session_start = self.state.session_start;
         let show_referral_button = referral_url.is_some();

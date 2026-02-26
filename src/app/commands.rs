@@ -511,6 +511,14 @@ pub async fn check_for_update(app: AppHandle) -> Result<UpdaterStatus, String> {
 
 #[tauri::command]
 pub async fn download_update(app: AppHandle) -> Result<(), String> {
+    #[cfg(target_os = "linux")]
+    {
+        return Err(
+            "Automatic updater is disabled on Linux. Please redownload from https://github.com/hackclub/flavortime"
+                .to_string(),
+        );
+    }
+
     let updater = app.updater().map_err(stringify)?;
     let update = updater
         .check()
@@ -541,7 +549,8 @@ pub async fn download_update(app: AppHandle) -> Result<(), String> {
 
 #[tauri::command]
 pub fn restart_for_update(app: AppHandle) -> Result<(), String> {
-    app.restart()
+    app.request_restart();
+    Ok(())
 }
 
 fn accumulate_sharing_seconds(state: &AppState, session_active: bool) -> Result<u64, String> {

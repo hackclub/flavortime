@@ -70,11 +70,13 @@ const elements = {
     adultFlatpakWarning: byId('adult-flatpak-warning')
 };
 const IS_WINDOWS_PLATFORM = document.documentElement.classList.contains('platform-windows');
+const IS_LINUX_PLATFORM = document.documentElement.classList.contains('platform-linux');
 
 let confirmResolve = null;
 let confirmLastFocused = null;
 const PYRAMID_URL = 'https://pyramid.hackclub.com';
 const FLAVORTOWN_SETTINGS_URL = 'https://flavortown.hackclub.com/kitchen?settings=1';
+const FLAVORTIME_REPO_URL = 'https://github.com/hackclub/flavortime';
 const RPC_CONNECTING_MAX_MS = 25000;
 const RPC_STATUS_TIMEOUT_MS = 2500;
 const RPC_FORCE_REFRESH_TIMEOUT_MS = 5000;
@@ -367,6 +369,26 @@ function renderDownloadingUpdaterState() {
     });
 }
 
+function renderReadyToRestartUpdaterState() {
+    renderUpdaterState({
+        visible: true,
+        tone: 'ready',
+        messageKey: 'updater.ready'
+    });
+}
+
+function renderLinuxManualUpdaterState() {
+    renderUpdaterState({
+        visible: true,
+        tone: 'ready',
+        messageKey: 'updater.linux_manual',
+        actionKey: 'updater.redownload_button',
+        onAction: () => openExternal(FLAVORTIME_REPO_URL),
+        showDismiss: true,
+        onDismiss: () => renderUpdaterState({ visible: false })
+    });
+}
+
 async function ensureUpdaterEventListeners() {
     const eventApi = window.__TAURI__?.event;
     if (!eventApi || typeof eventApi.listen !== 'function') {
@@ -397,17 +419,13 @@ async function ensureUpdaterEventListeners() {
 }
 
 async function restartForUpdate() {
+    renderReadyToRestartUpdaterState();
+
     try {
         await invoke('restart_for_update');
     } catch (err) {
         console.error('Failed to restart for update:', err);
-        renderUpdaterState({
-            visible: true,
-            tone: 'failed',
-            messageKey: 'updater.restart_failed',
-            actionKey: 'updater.retry_button',
-            onAction: restartForUpdate
-        });
+        renderReadyToRestartUpdaterState();
     }
 }
 
@@ -426,25 +444,17 @@ async function downloadUpdateAndRender() {
         updaterDownloadPercent = 100;
 
         if (IS_WINDOWS_PLATFORM) {
-            renderUpdaterState({
-                visible: true,
-                tone: 'ready',
-                messageKey: 'updater.installing_windows',
-                showDismiss: true,
-                onDismiss: () => renderUpdaterState({ visible: false })
-            });
+            updaterBusy = false;
+            // Windows updater runs installer + relaunch flow itself; keep this path headless.
+            renderUpdaterState({ visible: false });
             return;
         }
 
-        renderUpdaterState({
-            visible: true,
-            tone: 'ready',
-            messageKey: 'updater.ready',
-            actionKey: 'updater.restart_button',
-            actionVariant: 'text-with-check',
-            onAction: restartForUpdate
-        });
+        updaterBusy = false;
+        renderReadyToRestartUpdaterState();
+        void restartForUpdate();
     } catch (err) {
+        updaterBusy = false;
         console.error('Update download failed:', err);
         renderUpdaterState({
             visible: true,
@@ -456,8 +466,6 @@ async function downloadUpdateAndRender() {
             onDismiss: () => renderUpdaterState({ visible: false }),
             onAction: downloadUpdateAndRender
         });
-    } finally {
-        updaterBusy = false;
     }
 }
 
@@ -492,6 +500,11 @@ async function initUpdaterBanner() {
 
         if (!status?.update_available) {
             renderUpdaterState({ visible: false });
+            return;
+        }
+
+        if (IS_LINUX_PLATFORM) {
+            renderLinuxManualUpdaterState();
             return;
         }
 

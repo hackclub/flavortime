@@ -67,9 +67,12 @@
     "updater": {
         "downloading": "There is an update available. Downloading...",
         "installing_windows": "Update downloaded. The Windows installer should launch automatically.",
-        "ready": "Restart to update",
+        "linux_manual": "Update available. Please redownload here.",
+        "restarting": "Update installed. Restarting...",
+        "ready": "Restart app to update",
         "failed": "Update download failed.",
         "restart_failed": "Restart failed. Please try again.",
+        "redownload_button": "Open GitHub",
         "retry_button": "Retry",
         "restart_button": "Restart",
         "dismiss_button": "Dismiss"
@@ -103,7 +106,7 @@
     },
 
     "adult": {
-        "title": "Logged Out Mode (No Hackatime)",
+        "title": "No Flavortown",
         "referral_title": "Referral Code",
         "referral_label": "Referral code (optional)",
         "referral_hint": "Leave blank to hide it from Discord.",

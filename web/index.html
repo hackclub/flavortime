@@ -11,6 +11,8 @@
                 document.documentElement.classList.add("platform-macos");
             } else if (ua.includes("windows")) {
                 document.documentElement.classList.add("platform-windows");
+            } else if (ua.includes("linux")) {
+                document.documentElement.classList.add("platform-linux");
             } else {
                 document.documentElement.classList.add("platform-other");
             }
@@ -207,7 +209,7 @@
             <div id="adult-dashboard" class="screen hidden">
                 <div class="card card-dashboard">
                     <div class="topline">
-                        <h2 data-i18n="adult.title">Logged Out Mode (No Hackatime)</h2>
+                        <h2 data-i18n="adult.title">No Flavortown</h2>
                         <div class="rpc-group">
                             <span id="adult-rpc-status" class="rpc-badge rpc-inactive" data-i18n="rpc.inactive">RPC Inactive</span>
                             <button
@@ -273,7 +275,13 @@
                     </section>
 
                     <div class="actions-row single-action">
-                        <button id="btn-reset" class="btn btn-danger btn-small" data-i18n="actions.reset">Reset Application</button>
+                        <button id="btn-reset" class="btn btn-danger btn-small">
+                            <svg class="btn-icon" viewBox="0 0 24 24" aria-hidden="true">
+                                <path d="M20 12a8 8 0 1 1-2.34-5.66"></path>
+                                <path d="M20 4v5h-5"></path>
+                            </svg>
+                            <span data-i18n="actions.reset">Reset Application</span>
+                        </button>
                     </div>
                     <div id="adult-update-banner" class="update-banner update-banner-attached hidden" role="status" aria-live="polite">
                         <span id="adult-update-text" class="update-banner-text"></span>
