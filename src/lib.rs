@@ -3,7 +3,7 @@
 mod app;
 mod data;
 mod services;
-#[cfg(not(target_os = "linux"))]
+#[cfg(target_os = "macos")]
 mod tray;
 
 use app::commands::{
@@ -25,7 +25,7 @@ pub fn run() {
         return;
     }
 
-    #[cfg(not(target_os = "linux"))]
+    #[cfg(target_os = "macos")]
     let start_hidden = std::env::args().any(|arg| arg == "--hidden");
 
     tauri::Builder::default()
@@ -60,10 +60,10 @@ pub fn run() {
             let state = AppState::new();
             app.manage(state);
 
-            #[cfg(not(target_os = "linux"))]
+            #[cfg(target_os = "macos")]
             tray::setup(app)?;
 
-            #[cfg(not(target_os = "linux"))]
+            #[cfg(target_os = "macos")]
             {
                 if start_hidden {
                     if let Some(window) = app.get_webview_window("main") {
