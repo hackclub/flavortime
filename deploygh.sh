@@ -128,7 +128,7 @@ fi
 echo "Waiting for release workflow run"
 run_id=""
 for _ in {1..180}; do
-  run_id="$(gh run list --workflow release.yml --event push --json databaseId,headSha --limit 100 --jq '.[] | select(.headSha == "'"$sha"'") | .databaseId' | head -n 1 || true)"
+  run_id="$(gh run list --workflow release.yml --event push --json databaseId,headSha --limit 100 --jq ".[] | select(.headSha == \"$sha\") | .databaseId" | head -n 1 || true)"
   if [[ -n "$run_id" ]]; then
     break
   fi
