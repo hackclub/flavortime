@@ -8,7 +8,8 @@ on:
 
 jobs:
   build-macos:
-    runs-on: macos-14
+    if: "${{ github.event_name != 'push' || !startsWith(github.event.head_commit.message, 'release: v') }}"
+    runs-on: blacksmith-8vcpu-macos-15
     steps:
       - uses: actions/checkout@v4
 
@@ -66,6 +67,7 @@ jobs:
             target/universal-apple-darwin/release/bundle/**/*.tar.gz
 
   build-windows:
+    if: "${{ github.event_name != 'push' || !startsWith(github.event.head_commit.message, 'release: v') }}"
     runs-on: blacksmith-4vcpu-windows-2025
     steps:
       - uses: actions/checkout@v4
@@ -126,6 +128,7 @@ jobs:
             target/x86_64-pc-windows-msvc/release/bundle/**/*.zip
 
   build-linux:
+    if: "${{ github.event_name != 'push' || !startsWith(github.event.head_commit.message, 'release: v') }}"
     runs-on: blacksmith-4vcpu-ubuntu-2404
     steps:
       - uses: actions/checkout@v4

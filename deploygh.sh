@@ -2,7 +2,7 @@
 set -euo pipefail
 
 usage() {
-  echo "Usage: ./deploygh.sh [--force|-f] <version>"
+  echo "Usage: ./deploygh.sh [--force|-f] <vX.Y.Z>"
 }
 
 FORCE=0
@@ -24,6 +24,11 @@ done
 
 if [[ -z "$VERSION_ARG" ]]; then
   usage
+  exit 1
+fi
+
+if [[ "$VERSION_ARG" != v* ]]; then
+  echo "Invalid version format: $VERSION_ARG (must start with 'v', e.g. v1.2.3)"
   exit 1
 fi
 
