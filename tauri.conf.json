@@ -47,6 +47,9 @@
   "plugins": {
     "updater": {
       "active": true,
+      "windows": {
+        "installMode": "passive"
+      },
       "endpoints": [
         "https://github.com/hackclub/flavortime/releases/latest/download/latest.json"
       ],
