@@ -280,7 +280,11 @@ function resetUpdaterButtons(action, dismiss) {
     clearUpdaterButton(dismiss);
 }
 
-function formatUpdaterMessage(messageKey, tone, progressPercent) {
+function formatUpdaterMessage(messageKey, tone, progressPercent, messageText = null) {
+    if (messageText) {
+        return messageText;
+    }
+
     const base = t(messageKey);
     if (tone === 'downloading' && Number.isFinite(progressPercent)) {
         return `${base} (${progressPercent}%)`;
@@ -288,10 +292,22 @@ function formatUpdaterMessage(messageKey, tone, progressPercent) {
     return base;
 }
 
+function updaterErrorText(err) {
+    if (typeof err === 'string' && err.trim()) {
+        return `${t('updater.failed')} ${err.trim()}`;
+    }
+    const detail = err?.message;
+    if (typeof detail === 'string' && detail.trim()) {
+        return `${t('updater.failed')} ${detail.trim()}`;
+    }
+    return t('updater.failed');
+}
+
 function renderUpdaterState({
     visible,
     tone = null,
     messageKey = null,
+    messageText = null,
     actionKey = null,
     onAction = null,
     actionVariant = 'text',
@@ -330,7 +346,7 @@ function renderUpdaterState({
         return;
     }
 
-    const message = formatUpdaterMessage(messageKey, tone, progressPercent);
+    const message = formatUpdaterMessage(messageKey, tone, progressPercent, messageText);
     targets.forEach(({ text, action, dismiss }) => {
         text.textContent = message;
         resetUpdaterButtons(action, dismiss);
@@ -460,6 +476,7 @@ async function downloadUpdateAndRender() {
             visible: true,
             tone: 'failed',
             messageKey: 'updater.failed',
+            messageText: updaterErrorText(err),
             actionKey: 'updater.retry_button',
             actionVariant: 'icon-refresh',
             showDismiss: true,
@@ -489,6 +506,7 @@ async function initUpdaterBanner() {
                 visible: true,
                 tone: 'failed',
                 messageKey: 'updater.failed',
+                messageText: updaterErrorText(status.error),
                 actionKey: 'updater.retry_button',
                 actionVariant: 'icon-refresh',
                 showDismiss: true,
@@ -515,6 +533,7 @@ async function initUpdaterBanner() {
             visible: true,
             tone: 'failed',
             messageKey: 'updater.failed',
+            messageText: updaterErrorText(err),
             actionKey: 'updater.retry_button',
             actionVariant: 'icon-refresh',
             showDismiss: true,

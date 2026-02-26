@@ -163,6 +163,56 @@ fi
 
 latest_endpoint="https://github.com/hackclub/flavortime/releases/download/$TAG/latest.json"
 latest_json="$(curl -fsSL "$latest_endpoint")"
+
+tmp_latest="$(mktemp)"
+LATEST_JSON="$latest_json" node <<'NODE' > "$tmp_latest"
+const data = JSON.parse(process.env.LATEST_JSON);
+const platforms = data.platforms && typeof data.platforms === "object" ? data.platforms : {};
+const byUrl = new Map();
+
+for (const entry of Object.values(platforms)) {
+  if (!entry || typeof entry.url !== "string" || typeof entry.signature !== "string") continue;
+  if (!byUrl.has(entry.url)) byUrl.set(entry.url, null);
+}
+
+async function main() {
+  for (const [url] of byUrl.entries()) {
+    const sigUrl = `${url}.sig`;
+    const response = await fetch(sigUrl, { headers: { "cache-control": "no-cache" } });
+    if (!response.ok) {
+      throw new Error(`failed to fetch signature asset ${sigUrl}: HTTP ${response.status}`);
+    }
+    const sig = (await response.text()).trim();
+    if (!sig) {
+      throw new Error(`empty signature payload at ${sigUrl}`);
+    }
+    byUrl.set(url, sig);
+  }
+
+  for (const entry of Object.values(platforms)) {
+    if (!entry || typeof entry.url !== "string" || typeof entry.signature !== "string") continue;
+    const sig = byUrl.get(entry.url);
+    if (sig) {
+      entry.signature = sig;
+    }
+  }
+
+  process.stdout.write(`${JSON.stringify(data, null, 2)}\n`);
+}
+
+main().catch((error) => {
+  console.error(error instanceof Error ? error.message : String(error));
+  process.exit(1);
+});
+NODE
+
+if ! diff -q <(printf '%s\n' "$latest_json") "$tmp_latest" >/dev/null 2>&1; then
+  gh release upload "$TAG" "$tmp_latest#latest.json" --clobber
+fi
+
+latest_json="$(cat "$tmp_latest")"
+rm -f "$tmp_latest"
+
 LATEST_JSON="$latest_json" VERSION="$VERSION" TAG="$TAG" node <<'NODE'
 const data = JSON.parse(process.env.LATEST_JSON);
 const version = process.env.VERSION;
@@ -180,17 +230,35 @@ if (data.version !== version) {
   throw new Error(`latest.json version mismatch: expected ${version}, got ${data.version}`);
 }
 
-for (const target of requiredTargets) {
-  const entry = data.platforms?.[target];
-  if (!entry || typeof entry.url !== "string" || typeof entry.signature !== "string") {
-    throw new Error(`latest.json missing required platform entry: ${target}`);
-  }
+async function validate() {
+  for (const target of requiredTargets) {
+    const entry = data.platforms?.[target];
+    if (!entry || typeof entry.url !== "string" || typeof entry.signature !== "string") {
+      throw new Error(`latest.json missing required platform entry: ${target}`);
+    }
 
-  const expected = `/hackclub/flavortime/releases/download/${tag}/`;
-  if (!entry.url.includes(expected)) {
-    throw new Error(`latest.json URL for ${target} does not point at ${tag}: ${entry.url}`);
+    const expected = `/hackclub/flavortime/releases/download/${tag}/`;
+    if (!entry.url.includes(expected)) {
+      throw new Error(`latest.json URL for ${target} does not point at ${tag}: ${entry.url}`);
+    }
+
+    const sigUrl = `${entry.url}.sig`;
+    const response = await fetch(sigUrl, { headers: { "cache-control": "no-cache" } });
+    if (!response.ok) {
+      throw new Error(`failed to fetch ${sigUrl}: HTTP ${response.status}`);
+    }
+
+    const expectedSig = (await response.text()).trim();
+    if (entry.signature.trim() !== expectedSig) {
+      throw new Error(`latest.json signature mismatch for ${target}`);
+    }
   }
 }
+
+validate().catch((error) => {
+  console.error(error instanceof Error ? error.message : String(error));
+  process.exit(1);
+});
 NODE
 
 url="$(gh release view "$TAG" --json url --jq '.url')"

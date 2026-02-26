@@ -519,6 +519,18 @@ pub async fn download_update(app: AppHandle) -> Result<(), String> {
         );
     }
 
+    #[cfg(target_os = "macos")]
+    {
+        let current_exe = std::env::current_exe().map_err(stringify)?;
+        let exe_path = current_exe.to_string_lossy();
+        if exe_path.contains("/AppTranslocation/") || exe_path.starts_with("/Volumes/") {
+            return Err(
+                "Install Flavortime to /Applications and open it from there before updating."
+                    .to_string(),
+            );
+        }
+    }
+
     let updater = app.updater().map_err(stringify)?;
     let update = updater
         .check()
