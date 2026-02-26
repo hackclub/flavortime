@@ -5,8 +5,9 @@ use std::sync::Mutex;
 pub struct AppState {
     pub config: Mutex<Config>,
     pub discord: Mutex<Option<DiscordPresenceManager>>,
-    pub flavortime_fingerprint: Mutex<Option<String>>,
+    pub flavortime_session_id: Mutex<Option<String>>,
     pub last_sharing_tick: Mutex<Option<u64>>,
+    pub shutdown_requested: Mutex<bool>,
 }
 
 impl AppState {
@@ -26,8 +27,9 @@ impl Default for AppState {
         Self {
             config: Mutex::new(config),
             discord: Mutex::new(None),
-            flavortime_fingerprint: Mutex::new(None),
+            flavortime_session_id: Mutex::new(None),
             last_sharing_tick: Mutex::new(None),
+            shutdown_requested: Mutex::new(false),
         }
     }
 }

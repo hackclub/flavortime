@@ -7,15 +7,17 @@ mod services;
 mod tray;
 
 use app::commands::{
-    check_for_update, download_update, force_refresh_discord, get_discord_status,
-    get_hackatime_data, get_status, init_discord, login_as_adult, login_with_flavortown_api_key,
-    logout, open_external, refresh_referral_codes, restart_for_update, send_flavortown_heartbeat,
+    check_for_update, close_flavortime_session, close_flavortime_session_for_shutdown,
+    download_update, force_refresh_discord, get_discord_status, get_hackatime_data, get_status,
+    init_discord, login_as_adult, login_with_flavortown_api_key, logout, open_external,
+    refresh_referral_codes, restart_for_update, send_flavortown_heartbeat,
     set_adult_referral_code, set_app_enabled, set_custom_referral_code, set_launch_at_startup,
     set_selected_referral_code, set_show_referral_code, set_show_time_tracking,
     update_discord_presence,
 };
 use app::state::AppState;
 use data::runtime::validate_startup_fields;
+use std::time::Duration;
 use tauri::Manager;
 use tauri_plugin_autostart::MacosLauncher;
 
@@ -38,7 +40,7 @@ pub fn run() {
     #[cfg(target_os = "macos")]
     let start_hidden = std::env::args().any(|arg| arg == "--hidden");
 
-    tauri::Builder::default()
+    let app = tauri::Builder::default()
         .plugin(tauri_plugin_autostart::init(
             MacosLauncher::LaunchAgent,
             Some(vec!["--hidden"]),
@@ -89,6 +91,7 @@ pub fn run() {
             login_with_flavortown_api_key,
             login_as_adult,
             logout,
+            close_flavortime_session,
             set_selected_referral_code,
             set_custom_referral_code,
             set_show_referral_code,
@@ -108,6 +111,37 @@ pub fn run() {
             download_update,
             restart_for_update,
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application");
+
+    app.run(move |app, event| {
+            if let tauri::RunEvent::ExitRequested { api, .. } = event {
+                let intercept_exit = app
+                    .try_state::<AppState>()
+                    .and_then(|state| {
+                        state.shutdown_requested.lock().ok().map(|mut requested| {
+                            if *requested {
+                                false
+                            } else {
+                                *requested = true;
+                                true
+                            }
+                        })
+                    })
+                    .unwrap_or(false);
+
+                if intercept_exit {
+                    api.prevent_exit();
+                    let app_handle = app.clone();
+                    tauri::async_runtime::spawn(async move {
+                        let _ = tokio::time::timeout(
+                            Duration::from_secs(3),
+                            close_flavortime_session_for_shutdown(&app_handle),
+                        )
+                        .await;
+                        app_handle.exit(0);
+                    });
+                }
+            }
+        });
 }

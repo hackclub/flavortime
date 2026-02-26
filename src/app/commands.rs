@@ -12,7 +12,7 @@ use crate::services::{
 use serde::Serialize;
 use std::sync::{Mutex, MutexGuard};
 use std::time::{SystemTime, UNIX_EPOCH};
-use tauri::{AppHandle, Emitter, State};
+use tauri::{AppHandle, Emitter, Manager, State};
 use tauri_plugin_autostart::ManagerExt;
 use tauri_plugin_updater::UpdaterExt;
 
@@ -172,9 +172,9 @@ pub async fn login_with_flavortown_api_key(
         cfg.app_enabled
     };
 
-    *lock(&state.flavortime_fingerprint)? = None;
+    *lock(&state.flavortime_session_id)? = None;
     reset_sharing_session(&state)?;
-    ensure_flavortime_fingerprint(&state, api_key).await?;
+    ensure_flavortime_session_id(&state, api_key).await?;
 
     if should_reconnect {
         if let Err(err) = (|| -> Result<(), String> {
@@ -204,7 +204,7 @@ pub fn login_as_adult(state: State<AppState>) -> Result<(), String> {
         cfg.app_enabled
     };
 
-    *lock(&state.flavortime_fingerprint)? = None;
+    *lock(&state.flavortime_session_id)? = None;
     reset_sharing_session(&state)?;
 
     if should_reconnect {
@@ -217,7 +217,11 @@ pub fn login_as_adult(state: State<AppState>) -> Result<(), String> {
 }
 
 #[tauri::command]
-pub fn logout(state: State<AppState>) -> Result<(), String> {
+pub async fn logout(state: State<'_, AppState>) -> Result<(), String> {
+    if let Err(err) = close_flavortime_session_from_state(&state, false).await {
+        log::warn!("Flavortime session close during logout failed (non-fatal): {err}");
+    }
+
     {
         let mut cfg = lock(&state.config)?;
         cfg.reset();
@@ -229,9 +233,14 @@ pub fn logout(state: State<AppState>) -> Result<(), String> {
         client.stop();
     }
     *rpc = None;
-    *lock(&state.flavortime_fingerprint)? = None;
+    *lock(&state.flavortime_session_id)? = None;
     *lock(&state.last_sharing_tick)? = None;
     Ok(())
+}
+
+#[tauri::command]
+pub async fn close_flavortime_session(state: State<'_, AppState>) -> Result<(), String> {
+    close_flavortime_session_from_state(&state, true).await
 }
 
 #[tauri::command]
@@ -371,20 +380,35 @@ pub async fn send_flavortown_heartbeat(state: State<'_, AppState>) -> Result<u64
         _ => return Ok(0),
     };
 
-    let fingerprint = ensure_flavortime_fingerprint(&state, &api_key).await?;
+    let session_id = ensure_flavortime_session_id(&state, &api_key).await?;
+    let metadata = flavortown::session_metadata();
 
-    match flavortown::send_heartbeat(&api_key, &fingerprint, sharing_active_seconds_total).await? {
+    match flavortown::send_heartbeat(
+        &api_key,
+        &session_id,
+        sharing_active_seconds_total,
+        metadata.platform,
+        metadata.app_version,
+    )
+    .await?
+    {
         flavortown::HeartbeatOutcome::ActiveUsers(count) => Ok(count),
-        flavortown::HeartbeatOutcome::InvalidFingerprint => {
-            let fingerprint = rotate_flavortime_fingerprint(&state, &api_key).await?;
+        flavortown::HeartbeatOutcome::InvalidSessionId => {
+            let session_id = rotate_flavortime_session_id(&state, &api_key).await?;
             let sharing_total_after_rotate = lock(&state.config)?.sharing_active_seconds_total;
 
-            match flavortown::send_heartbeat(&api_key, &fingerprint, sharing_total_after_rotate)
-                .await?
+            match flavortown::send_heartbeat(
+                &api_key,
+                &session_id,
+                sharing_total_after_rotate,
+                metadata.platform,
+                metadata.app_version,
+            )
+            .await?
             {
                 flavortown::HeartbeatOutcome::ActiveUsers(count) => Ok(count),
-                flavortown::HeartbeatOutcome::InvalidFingerprint => {
-                    Err("Flavortown rejected fingerprint after rotation".to_string())
+                flavortown::HeartbeatOutcome::InvalidSessionId => {
+                    Err("Flavortown rejected session ID after rotation".to_string())
                 }
             }
         }
@@ -565,6 +589,14 @@ pub fn restart_for_update(app: AppHandle) -> Result<(), String> {
     Ok(())
 }
 
+pub async fn close_flavortime_session_for_shutdown(app: &AppHandle) -> Result<(), String> {
+    let Some(state) = app.try_state::<AppState>() else {
+        return Ok(());
+    };
+
+    close_flavortime_session_from_state(&state, false).await
+}
+
 fn accumulate_sharing_seconds(state: &AppState, session_active: bool) -> Result<u64, String> {
     let now = unix_now_secs();
     let mut last_tick = lock(&state.last_sharing_tick)?;
@@ -616,19 +648,80 @@ async fn fetch_hackatime_snapshot(slack_id: &str) -> Result<HackatimeSnapshot, S
     })
 }
 
-async fn ensure_flavortime_fingerprint(state: &AppState, api_key: &str) -> Result<String, String> {
-    if let Some(existing) = lock(&state.flavortime_fingerprint)?.clone() {
+async fn ensure_flavortime_session_id(state: &AppState, api_key: &str) -> Result<String, String> {
+    if let Some(existing) = lock(&state.flavortime_session_id)?.clone() {
         return Ok(existing);
     }
 
-    rotate_flavortime_fingerprint(state, api_key).await
+    rotate_flavortime_session_id(state, api_key).await
 }
 
-async fn rotate_flavortime_fingerprint(state: &AppState, api_key: &str) -> Result<String, String> {
-    let fingerprint = flavortown::create_fingerprint(api_key).await?;
-    *lock(&state.flavortime_fingerprint)? = Some(fingerprint.clone());
+async fn rotate_flavortime_session_id(state: &AppState, api_key: &str) -> Result<String, String> {
+    let metadata = flavortown::session_metadata();
+    let session_id =
+        flavortown::create_session(api_key, metadata.platform, metadata.app_version).await?;
+    *lock(&state.flavortime_session_id)? = Some(session_id.clone());
     reset_sharing_session(state)?;
-    Ok(fingerprint)
+    Ok(session_id)
+}
+
+async fn close_flavortime_session_from_state(
+    state: &AppState,
+    clear_local_session: bool,
+) -> Result<(), String> {
+    let close_request = flavortime_close_request(state)?;
+    if let Some((api_key, session_id, sharing_active_seconds_total)) = close_request {
+        let metadata = flavortown::session_metadata();
+        let active_users = match flavortown::close_session(
+            &api_key,
+            &session_id,
+            sharing_active_seconds_total,
+            metadata.platform,
+            metadata.app_version,
+        )
+        .await?
+        {
+            flavortown::CloseOutcome::ActiveUsers(count) => count,
+            flavortown::CloseOutcome::InvalidSessionId => 0,
+        };
+        let _ = active_users;
+    }
+
+    if clear_local_session {
+        *lock(&state.flavortime_session_id)? = None;
+        reset_sharing_session(state)?;
+    }
+
+    Ok(())
+}
+
+fn flavortime_close_request(state: &AppState) -> Result<Option<(String, String, u64)>, String> {
+    let (auth_mode, api_key, sharing_active_seconds_total) = {
+        let cfg = lock(&state.config)?;
+        (
+            cfg.auth_mode.clone(),
+            cfg.flavortown_api_key.clone(),
+            cfg.sharing_active_seconds_total,
+        )
+    };
+
+    if !matches!(auth_mode, Mode::Hackatime) {
+        return Ok(None);
+    }
+
+    let api_key = match api_key {
+        Some(value) if !value.trim().is_empty() => value,
+        _ => return Ok(None),
+    };
+
+    let session_id = lock(&state.flavortime_session_id)?
+        .clone()
+        .filter(|value| !value.trim().is_empty());
+    let Some(session_id) = session_id else {
+        return Ok(None);
+    };
+
+    Ok(Some((api_key, session_id, sharing_active_seconds_total)))
 }
 
 fn reset_sharing_session(state: &AppState) -> Result<(), String> {
