@@ -1,0 +1,111 @@
+{
+    "app": {
+        "name": "Flavortime",
+        "tagline": "Flavortown Rich Presence for Discord!"
+    },
+
+    "login": {
+        "title": "Welcome to Flavortime",
+        "subtitle": "Connect Flavortime and share your Flavortown coding status!",
+        "hackatime_button": "Login with Flavortown",
+        "adult_button": "Don't have Hackatime?",
+        "pyramid_promo_html": "<strong>Are you on Pyramid Scheme?</strong> Sign up to share your Flavortown referral code.",
+        "error_failed": "Login was denied or expired. Please try again.",
+        "error_generic": "Login failed before we got the callback.",
+        "error_canceled": "Login canceled. You can try again anytime.",
+        "error_timeout": "Login timed out. If your browser is still loading localhost, close it and try again."
+    },
+
+    "login_modal": {
+        "title": "Logging into Flavortime",
+        "subtitle": "Enter your Flavortown API key to continue. You can get this in Flavortown settings.",
+        "api_key_label": "Flavortown API key",
+        "api_key_placeholder": "Paste API key",
+        "submit": "Login",
+        "cancel": "Cancel"
+    },
+
+    "dashboard": {
+        "title": "Dashboard",
+        "stat_project": "Current Project",
+        "stat_today": "Today",
+        "stat_empty": "-"
+    },
+
+    "referral": {
+        "title": "Pyramid Scheme",
+        "open_button": "Open \u2197",
+        "show_in_discord": "Show referral code in Discord",
+        "button_visibility_info": "There is a button shown for signing up as well, but it won't be visible to you and only to other users. This is a Discord limitation!",
+        "no_codes": "No referral codes available",
+        "custom_code_label": "Custom code (optional)",
+        "custom_code_placeholder": "Enter custom code",
+        "custom_code_hint": "Leave blank to use your synced Pyramid Scheme codes.",
+        "saved_code_label": "Pyramid Scheme code list",
+        "no_pyramid_promo": "No Pyramid Scheme code found yet. Join Pyramid Scheme to generate one."
+    },
+
+    "settings": {
+        "title": "App",
+        "show_time": "Show time tracking in Discord",
+        "launch_startup": "Launch at system startup",
+        "enable_app": "Enable Flavortime"
+    },
+
+    "rpc": {
+        "active": "Discord Connected",
+        "waiting": "Connecting",
+        "inactive": "Discord Inactive",
+        "disabled": "Discord Disabled",
+        "active_detail": "Discord session is live and Flavortime can update your presence.",
+        "waiting_detail": "Discord is still starting up. Keep Discord open or press refresh.",
+        "connecting_detail": "Connecting to Discord",
+        "inactive_detail": "Connection is currently inactive.",
+        "disabled_detail": "Enable Flavortime in App settings to reconnect to Discord."
+    },
+
+    "updater": {
+        "downloading": "There is an update available. Downloading...",
+        "ready": "Restart to update",
+        "failed": "Update download failed.",
+        "restart_failed": "Restart failed. Please try again.",
+        "retry_button": "Retry",
+        "restart_button": "Restart",
+        "dismiss_button": "Dismiss"
+    },
+
+    "rich_presence": {
+        "details_project_prefix": "Project: ",
+        "details_idle": "Flavortown",
+        "brand_label": "Flavortown",
+        "referral_button": "Use my referral",
+        "referral_host": "flavortown.hack.club",
+        "time_today_prefix": "Today: ",
+        "time_logged_suffix": " logged",
+        "status_tagline": "Work on your personal projects, get rewarded with prizes. For teens ages <19"
+    },
+
+    "actions": {
+        "refresh": "Refresh",
+        "refresh_tooltip": "Re-fetch referral codes and Hackatime data",
+        "refresh_rpc_tooltip": "Force Discord RPC reconnect",
+        "logout": "Logout",
+        "reset": "Reset Application",
+        "confirm_logout": "You are about to log out of Flavortime.",
+        "confirm_reset": "This will reset Flavortime settings and log you out."
+    },
+
+    "confirm": {
+        "title": "Are you sure?",
+        "cancel": "Cancel",
+        "confirm": "Confirm"
+    },
+
+    "adult": {
+        "title": "Logged Out Mode (No Hackatime)",
+        "referral_title": "Referral Code",
+        "referral_label": "Referral code (optional)",
+        "referral_hint": "Leave blank to hide it from Discord.",
+        "referral_placeholder": "Enter your referral code"
+    }
+}

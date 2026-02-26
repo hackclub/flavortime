@@ -1,0 +1,5 @@
+hackatime_base_url = "https://hackatime.hackclub.com"
+pyramid_base_url = "https://pyramid.hackclub.com"
+flavortown_base_url = "https://flavortown.hackclub.com"
+flavortown_campaign_slug = "flavortown"
+discord_client_id = 1466894494522802299

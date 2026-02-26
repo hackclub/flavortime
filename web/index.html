@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Flavortime</title>
+    <script>
+        (() => {
+            const ua = navigator.userAgent.toLowerCase();
+            if (ua.includes("mac os x")) {
+                document.documentElement.classList.add("platform-macos");
+            } else if (ua.includes("windows")) {
+                document.documentElement.classList.add("platform-windows");
+            } else {
+                document.documentElement.classList.add("platform-other");
+            }
+        })();
+    </script>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="app" class="mode-login">
+        <header class="header">
+            <div class="brand">
+                <img src="logo.png" alt="Flavortown" class="logo">
+                <div class="brand-text">
+                    <h1 data-i18n="app.name">Flavortime</h1>
+                    <p class="brand-subtitle" data-i18n="app.tagline">Flavortown Rich Presence</p>
+                </div>
+            </div>
+        </header>
+
+        <main id="main-content">
+            <div id="login-screen" class="screen">
+                <div class="login-iso-clocks" aria-hidden="true">
+                    <span class="login-iso-clock login-iso-clock-middle login-iso-clock-left"></span>
+                    <span class="login-iso-clock login-iso-clock-middle login-iso-clock-center"></span>
+                    <span class="login-iso-clock login-iso-clock-middle login-iso-clock-right"></span>
+                </div>
+                <div class="card card-login">
+                    <div class="login-copy">
+                        <h2 id="welcome-heading" data-i18n="login.title">Welcome to Flavortime</h2>
+                        <p class="subtitle" data-i18n="login.subtitle">Connect Flavortime and share your coding status.</p>
+                    </div>
+
+                    <div id="login-error" class="notice hidden" role="alert"></div>
+
+                    <div class="login-actions">
+                        <div class="auth-buttons">
+                            <button id="btn-hackatime-login" class="btn btn-primary">
+                                <svg class="btn-icon" viewBox="0 0 24 24" aria-hidden="true">
+                                    <path d="M15.75 9V5.25C15.75 4.00736 14.7426 3 13.5 3L7.5 3C6.25736 3 5.25 4.00736 5.25 5.25L5.25 18.75C5.25 19.9926 6.25736 21 7.5 21H13.5C14.7426 21 15.75 19.9926 15.75 18.75V15M18.75 15L21.75 12M21.75 12L18.75 9M21.75 12L9 12"></path>
+                                </svg>
+                                <span data-i18n="login.hackatime_button">Login with Flavortown</span>
+                            </button>
+                            <button id="btn-adult-login" class="btn btn-secondary">
+                                <svg class="btn-icon" viewBox="0 0 24 24" aria-hidden="true">
+                                    <path d="M17.9815 18.7248C16.6121 16.9175 14.4424 15.75 12 15.75C9.55761 15.75 7.38789 16.9175 6.01846 18.7248M17.9815 18.7248C19.8335 17.0763 21 14.6744 21 12C21 7.02944 16.9706 3 12 3C7.02944 3 3 7.02944 3 12C3 14.6744 4.1665 17.0763 6.01846 18.7248M17.9815 18.7248C16.3915 20.1401 14.2962 21 12 21C9.70383 21 7.60851 20.1401 6.01846 18.7248M15 9.75C15 11.4069 13.6569 12.75 12 12.75C10.3431 12.75 9 11.4069 9 9.75C9 8.09315 10.3431 6.75 12 6.75C13.6569 6.75 15 8.09315 15 9.75Z"></path>
+                                </svg>
+                                <span data-i18n="login.adult_button">Don't have Hackatime?</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <a id="login-promo" class="promo login-promo external-link" href="https://pyramid.hackclub.com" data-open-url="https://pyramid.hackclub.com">
+                    <span class="promo-copy" data-i18n-html="login.pyramid_promo_html"><strong>New to Pyramid Scheme?</strong> Sign up to get referral rewards.</span>
+                    <span class="promo-arrow" aria-hidden="true">&#8599;</span>
+                </a>
+                <div id="login-update-banner" class="update-banner update-banner-login hidden" role="status" aria-live="polite">
+                    <span id="login-update-text" class="update-banner-text"></span>
+                    <button id="login-update-action" class="update-banner-action hidden" type="button"></button>
+                    <button id="login-update-dismiss" class="update-banner-action update-banner-dismiss hidden" type="button"></button>
+                </div>
+            </div>
+
+            <div id="hackatime-dashboard" class="screen hidden">
+                <div class="card card-dashboard">
+                    <div class="topline">
+                        <h2 data-i18n="dashboard.title">Dashboard</h2>
+                        <div class="rpc-group">
+                            <span id="rpc-status" class="rpc-badge rpc-inactive" data-i18n="rpc.inactive">RPC Inactive</span>
+                            <button
+                                id="btn-rpc-refresh"
+                                class="rpc-refresh-btn"
+                                type="button"
+                                data-i18n-title="actions.refresh_rpc_tooltip"
+                                title="Force Discord RPC reconnect"
+                                aria-label="Force Discord RPC reconnect"
+                            >
+                                <svg viewBox="0 0 24 24" aria-hidden="true">
+                                    <path d="M20 12a8 8 0 1 1-2.34-5.66" />
+                                    <path d="M20 4v5h-5" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                    <p id="rpc-detail" class="rpc-detail" data-i18n="rpc.inactive_detail">RPC is currently inactive.</p>
+
+                    <section class="stats-row" role="group" aria-label="Dashboard stats">
+                        <article class="stat stat-project">
+                            <span class="stat-label-wrap">
+                                <span class="stat-dot" aria-hidden="true"></span>
+                                <span class="stat-label" data-i18n="dashboard.stat_project">Current Project</span>
+                            </span>
+                            <span id="current-project" class="stat-value stat-value-loading" aria-busy="true">
+                                <span class="stat-inline-loader" aria-hidden="true"></span>
+                            </span>
+                        </article>
+                        <article class="stat stat-time">
+                            <span class="stat-label-wrap">
+                                <span class="stat-dot" aria-hidden="true"></span>
+                                <span class="stat-label" data-i18n="dashboard.stat_today">Today</span>
+                            </span>
+                            <span id="total-hours" class="stat-value stat-value-loading" aria-busy="true">
+                                <span class="stat-inline-loader" aria-hidden="true"></span>
+                            </span>
+                        </article>
+                    </section>
+
+                    <section class="section section-pyramid">
+                        <div class="section-header">
+                            <div class="section-title">
+                                <h3 data-i18n="referral.title">Pyramid Referral</h3>
+                            </div>
+                            <div class="section-actions-inline">
+                                <button id="btn-open-pyramid" class="mini-link" type="button" data-i18n="referral.open_button">Open ↗</button>
+                            </div>
+                        </div>
+
+                        <div class="toggle-row">
+                            <label for="show-referral" data-i18n="referral.show_in_discord">Show referral code in Discord</label>
+                            <div class="toggle">
+                                <input type="checkbox" id="show-referral" checked>
+                                <span class="toggle-track"></span>
+                            </div>
+                        </div>
+
+                        <div id="referral-selection" class="referral-section">
+                            <fieldset id="referral-fields" class="referral-fields">
+                                <div class="referral-field referral-field-custom">
+                                    <label for="custom-referral" data-i18n="referral.custom_code_label">Custom code (optional)</label>
+                                    <input type="text" id="custom-referral" class="input" placeholder="Enter custom code" data-i18n-placeholder="referral.custom_code_placeholder">
+                                    <p class="referral-hint" data-i18n="referral.custom_code_hint">Leave blank to use your synced Pyramid code.</p>
+                                </div>
+                                <div class="referral-field">
+                                    <label for="referral-select" data-i18n="referral.saved_code_label">Synced Pyramid code</label>
+                                    <select id="referral-select" class="select"></select>
+                                </div>
+                            </fieldset>
+                        </div>
+
+                        <a id="pyramid-signup-promo" class="promo promo-inline hidden external-link" href="https://pyramid.hackclub.com" data-open-url="https://pyramid.hackclub.com">
+                            <span class="promo-copy" data-i18n="referral.no_pyramid_promo">No Pyramid code found yet. Join Pyramid Scheme to generate one.</span>
+                            <span class="promo-arrow" aria-hidden="true">&#8599;</span>
+                        </a>
+                    </section>
+
+                    <section class="section">
+                        <div class="section-header">
+                            <h3 data-i18n="settings.title">App</h3>
+                        </div>
+                        <div class="toggle-row">
+                            <label for="show-time" data-i18n="settings.show_time">Show time tracking in Discord</label>
+                            <div class="toggle">
+                                <input type="checkbox" id="show-time" checked>
+                                <span class="toggle-track"></span>
+                            </div>
+                        </div>
+                        <div class="toggle-row">
+                            <label for="launch-startup" data-i18n="settings.launch_startup">Launch at system startup</label>
+                            <div class="toggle">
+                                <input type="checkbox" id="launch-startup">
+                                <span class="toggle-track"></span>
+                            </div>
+                        </div>
+                        <div class="toggle-row">
+                            <label for="app-enabled" data-i18n="settings.enable_app">Enable Flavortime</label>
+                            <div class="toggle">
+                                <input type="checkbox" id="app-enabled" checked>
+                                <span class="toggle-track"></span>
+                            </div>
+                        </div>
+                    </section>
+
+                    <div class="actions-row">
+                        <button id="btn-logout" class="btn btn-danger btn-small">
+                            <svg class="btn-icon" viewBox="0 0 24 24" aria-hidden="true">
+                                <path d="M15 16l4-4-4-4"></path>
+                                <path d="M9 12h10"></path>
+                                <path d="M13 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h7"></path>
+                            </svg>
+                            <span data-i18n="actions.logout">Logout</span>
+                        </button>
+                    </div>
+                    <div id="dashboard-update-banner" class="update-banner update-banner-attached hidden" role="status" aria-live="polite">
+                        <span id="dashboard-update-text" class="update-banner-text"></span>
+                        <button id="dashboard-update-action" class="update-banner-action hidden" type="button"></button>
+                        <button id="dashboard-update-dismiss" class="update-banner-action update-banner-dismiss hidden" type="button"></button>
+                    </div>
+                    <div id="dashboard-flatpak-warning" class="update-banner update-banner-attached update-banner-flatpak hidden" role="status" aria-live="polite">
+                        <span class="update-banner-text">Flatpak Discord detected, please check this <a class="flatpak-warning-link external-link" href="https://github.com/flathub/com.discordapp.Discord/wiki/Rich-Precense-(discord-rpc)" data-open-url="https://github.com/flathub/com.discordapp.Discord/wiki/Rich-Precense-(discord-rpc)">page</a> to enable rich presence.</span>
+                    </div>
+                </div>
+            </div>
+
+            <div id="adult-dashboard" class="screen hidden">
+                <div class="card card-dashboard">
+                    <div class="topline">
+                        <h2 data-i18n="adult.title">Logged Out Mode (No Hackatime)</h2>
+                        <div class="rpc-group">
+                            <span id="adult-rpc-status" class="rpc-badge rpc-inactive" data-i18n="rpc.inactive">RPC Inactive</span>
+                            <button
+                                id="btn-adult-rpc-refresh"
+                                class="rpc-refresh-btn"
+                                type="button"
+                                data-i18n-title="actions.refresh_rpc_tooltip"
+                                title="Force Discord RPC reconnect"
+                                aria-label="Force Discord RPC reconnect"
+                            >
+                                <svg viewBox="0 0 24 24" aria-hidden="true">
+                                    <path d="M20 12a8 8 0 1 1-2.34-5.66" />
+                                    <path d="M20 4v5h-5" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                    <p id="adult-rpc-detail" class="rpc-detail" data-i18n="rpc.inactive_detail">RPC is currently inactive.</p>
+
+                    <section class="section section-pyramid">
+                        <div class="section-header">
+                            <div class="section-title">
+                                <h3 data-i18n="adult.referral_title">Referral Code</h3>
+                            </div>
+                            <div class="section-actions-inline">
+                                <button id="btn-open-pyramid-adult" class="mini-link" type="button" data-i18n="referral.open_button">Open ↗</button>
+                            </div>
+                        </div>
+                        <div class="toggle-row">
+                            <label for="adult-show-referral" data-i18n="referral.show_in_discord">Show referral code in Discord</label>
+                            <div class="toggle">
+                                <input type="checkbox" id="adult-show-referral" checked>
+                                <span class="toggle-track"></span>
+                            </div>
+                        </div>
+                        <div id="adult-referral-section" class="referral-section">
+                            <div class="referral-field referral-field-custom">
+                                <label for="adult-referral-code" data-i18n="adult.referral_label">Referral code (optional)</label>
+                                <input type="text" id="adult-referral-code" class="input" placeholder="Enter your referral code" data-i18n-placeholder="adult.referral_placeholder">
+                                <p class="referral-hint" data-i18n="adult.referral_hint">Leave blank to hide it from Discord.</p>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section class="section">
+                        <div class="section-header">
+                            <h3 data-i18n="settings.title">App</h3>
+                        </div>
+                        <div class="toggle-row">
+                            <label for="adult-launch-startup" data-i18n="settings.launch_startup">Launch at system startup</label>
+                            <div class="toggle">
+                                <input type="checkbox" id="adult-launch-startup">
+                                <span class="toggle-track"></span>
+                            </div>
+                        </div>
+                        <div class="toggle-row">
+                            <label for="adult-app-enabled" data-i18n="settings.enable_app">Enable Flavortime</label>
+                            <div class="toggle">
+                                <input type="checkbox" id="adult-app-enabled" checked>
+                                <span class="toggle-track"></span>
+                            </div>
+                        </div>
+                    </section>
+
+                    <div class="actions-row single-action">
+                        <button id="btn-reset" class="btn btn-danger btn-small" data-i18n="actions.reset">Reset Application</button>
+                    </div>
+                    <div id="adult-update-banner" class="update-banner update-banner-attached hidden" role="status" aria-live="polite">
+                        <span id="adult-update-text" class="update-banner-text"></span>
+                        <button id="adult-update-action" class="update-banner-action hidden" type="button"></button>
+                        <button id="adult-update-dismiss" class="update-banner-action update-banner-dismiss hidden" type="button"></button>
+                    </div>
+                    <div id="adult-flatpak-warning" class="update-banner update-banner-attached update-banner-flatpak hidden" role="status" aria-live="polite">
+                        <span class="update-banner-text">Flatpak Discord detected, please check this <a class="flatpak-warning-link external-link" href="https://github.com/flathub/com.discordapp.Discord/wiki/Rich-Precense-(discord-rpc)" data-open-url="https://github.com/flathub/com.discordapp.Discord/wiki/Rich-Precense-(discord-rpc)">page</a> to enable rich presence.</span>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <div id="api-login-modal" class="auth-modal hidden" role="dialog" aria-modal="true" aria-labelledby="api-login-title">
+        <div class="auth-modal-card">
+            <div class="auth-modal-gif-box">
+                <img src="demo.gif" alt="" aria-hidden="true">
+            </div>
+            <h3 id="api-login-title" data-i18n="login_modal.title">Logging into Flavortime</h3>
+            <p class="subtitle login-modal-subtitle">
+                Enter your Flavortown API key to continue. You can get this in Flavortown <a id="api-settings-inline-link" class="auth-modal-inline-link external-link" href="https://flavortown.hackclub.com/kitchen?settings=1" data-open-url="https://flavortown.hackclub.com/kitchen?settings=1">settings</a>.
+            </p>
+
+            <div id="api-login-error" class="notice hidden" role="alert"></div>
+
+            <label class="auth-modal-label" for="api-key-input" data-i18n="login_modal.api_key_label">Flavortown API key</label>
+            <div class="auth-modal-input-wrap">
+                <input id="api-key-input" class="input" type="password" autocomplete="off" data-i18n-placeholder="login_modal.api_key_placeholder" placeholder="Paste API key">
+                <button
+                    id="btn-api-key-visibility"
+                    class="auth-modal-input-toggle"
+                    type="button"
+                    aria-label="Show API key"
+                    aria-pressed="false"
+                    title="Show API key"
+                >
+                    <svg class="btn-icon" viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M2 12C4 7.5 7.8 5.25 12 5.25C16.2 5.25 20 7.5 22 12C20 16.5 16.2 18.75 12 18.75C7.8 18.75 4 16.5 2 12Z"></path>
+                        <circle cx="12" cy="12" r="3.2"></circle>
+                    </svg>
+                </button>
+            </div>
+
+            <div class="auth-modal-actions">
+                <button id="btn-api-login-submit" class="btn btn-primary" type="button">
+                    <svg class="btn-icon" viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M15.75 9V5.25C15.75 4.00736 14.7426 3 13.5 3L7.5 3C6.25736 3 5.25 4.00736 5.25 5.25L5.25 18.75C5.25 19.9926 6.25736 21 7.5 21H13.5C14.7426 21 15.75 19.9926 15.75 18.75V15M18.75 15L21.75 12M21.75 12L18.75 9M21.75 12L9 12"></path>
+                    </svg>
+                    <span class="btn-loading-spinner hidden" aria-hidden="true"></span>
+                    <span data-i18n="login_modal.submit">Login</span>
+                </button>
+                <button id="btn-api-login-cancel" class="btn btn-ghost btn-small" type="button">
+                    <svg class="btn-icon" viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M6 6L18 18"></path>
+                        <path d="M18 6L6 18"></path>
+                    </svg>
+                    <span data-i18n="login_modal.cancel">Cancel</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="confirm-modal" class="confirm-modal hidden" role="dialog" aria-modal="true" aria-labelledby="confirm-modal-title">
+        <div class="confirm-card">
+            <h3 id="confirm-modal-title" data-i18n="confirm.title">Are you sure?</h3>
+            <p id="confirm-modal-message"></p>
+            <div class="confirm-actions">
+                <button id="btn-confirm-cancel" class="btn btn-ghost btn-small" data-i18n="confirm.cancel">Cancel</button>
+                <button id="btn-confirm-accept" class="btn btn-danger btn-small" data-i18n="confirm.confirm">Confirm</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="i18n.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>

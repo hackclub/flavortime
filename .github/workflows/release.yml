@@ -1,0 +1,140 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: blacksmith-8vcpu-macos-15
+            args: --target universal-apple-darwin --bundles app,dmg
+          - platform: blacksmith-4vcpu-windows-2025
+            args: --target x86_64-pc-windows-msvc --bundles nsis,msi
+          - platform: blacksmith-4vcpu-ubuntu-2404
+            args: --bundles deb,appimage
+
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        if: matrix.platform == 'blacksmith-8vcpu-macos-15'
+        with:
+          toolchain: stable
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
+
+      - uses: dtolnay/rust-toolchain@stable
+        if: matrix.platform == 'blacksmith-4vcpu-ubuntu-2404'
+        with:
+          toolchain: stable
+
+      - uses: dtolnay/rust-toolchain@stable
+        if: contains(matrix.platform, 'windows')
+        with:
+          toolchain: stable
+          targets: x86_64-pc-windows-msvc
+
+      - name: Import Apple Code Signing Certificate
+        if: matrix.platform == 'blacksmith-8vcpu-macos-15'
+        env:
+          CERTIFICATE_BASE64: ${{ secrets.APPLE_CERTIFICATE_BASE64 }}
+          CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+        run: |
+          if [[ -z "${CERTIFICATE_BASE64:-}" || -z "${CERTIFICATE_PASSWORD:-}" ]]; then
+            echo "Apple certificate secrets are not set; skipping."
+            exit 0
+          fi
+          CERTIFICATE_PATH=$RUNNER_TEMP/certificate.p12
+          KEYCHAIN_PATH=$RUNNER_TEMP/signing.keychain-db
+          KEYCHAIN_PASSWORD=$(openssl rand -hex 16)
+          echo -n "$CERTIFICATE_BASE64" | base64 --decode -o "$CERTIFICATE_PATH"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security import "$CERTIFICATE_PATH" -P "$CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+          security set-key-partition-list -S apple-tool:,apple: -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security list-keychain -d user -s "$KEYCHAIN_PATH" login.keychain-db
+
+      - name: Install Linux dependencies
+        if: contains(matrix.platform, 'ubuntu')
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev libssl-dev patchelf
+
+      - name: Install cargo-binstall (macOS/Linux)
+        if: "!contains(matrix.platform, 'windows')"
+        run: curl -L --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash
+
+      - name: Install cargo-binstall (Windows)
+        if: contains(matrix.platform, 'windows')
+        shell: pwsh
+        run: iex "& { $(irm https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.ps1) }"
+
+      - name: Install Tauri CLI
+        run: cargo binstall tauri-cli --version "^2.9" --no-confirm
+
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: "Developer ID Application"
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        with:
+          tauriScript: cargo tauri
+          tagName: ${{ github.ref_name }}
+          releaseName: Flavortime ${{ github.ref_name }}
+          releaseBody: Desktop release for ${{ github.ref_name }}.
+          releaseDraft: true
+          prerelease: false
+          includeUpdaterJson: true
+          updaterJsonPreferNsis: true
+          args: ${{ matrix.args }}
+
+      - name: Upload canonical macOS installer
+        if: matrix.platform == 'blacksmith-8vcpu-macos-15'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          asset="$(ls target/universal-apple-darwin/release/bundle/dmg/*.dmg | head -n 1)"
+          test -n "$asset"
+          cp "$asset" flavortime-macos-universal.dmg
+          gh release upload "$RELEASE_TAG" flavortime-macos-universal.dmg --clobber
+
+      - name: Upload canonical Windows installer
+        if: contains(matrix.platform, 'windows')
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        shell: pwsh
+        run: |
+          $asset = Get-ChildItem -Path "target/x86_64-pc-windows-msvc/release/bundle/nsis/*.exe" | Select-Object -First 1
+          if (-not $asset) { throw "Windows NSIS installer not found" }
+          Copy-Item $asset.FullName "flavortime-windows-x64.exe" -Force
+          gh release upload $env:RELEASE_TAG "flavortime-windows-x64.exe" --clobber
+          $msiAsset = Get-ChildItem -Path "target/x86_64-pc-windows-msvc/release/bundle/msi/*.msi" | Select-Object -First 1
+          if (-not $msiAsset) { throw "Windows MSI installer not found" }
+          Copy-Item $msiAsset.FullName "flavortime-windows-msi-x64.exe" -Force
+          gh release upload $env:RELEASE_TAG "flavortime-windows-msi-x64.exe" --clobber
+
+      - name: Upload canonical Linux installer
+        if: matrix.platform == 'blacksmith-4vcpu-ubuntu-2404'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          asset="$(ls target/release/bundle/appimage/*.AppImage | head -n 1)"
+          test -n "$asset"
+          cp "$asset" flavortime-linux-x64.AppImage
+          gh release upload "$RELEASE_TAG" flavortime-linux-x64.AppImage --clobber
