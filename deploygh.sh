@@ -207,7 +207,10 @@ main().catch((error) => {
 NODE
 
 if ! diff -q <(printf '%s\n' "$latest_json") "$tmp_latest" >/dev/null 2>&1; then
-  gh release upload "$TAG" "$tmp_latest#latest.json" --clobber
+  tmp_upload_dir="$(mktemp -d)"
+  cp "$tmp_latest" "$tmp_upload_dir/latest.json"
+  gh release upload "$TAG" "$tmp_upload_dir/latest.json" --clobber
+  rm -rf "$tmp_upload_dir"
 fi
 
 latest_json="$(cat "$tmp_latest")"
