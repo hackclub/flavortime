@@ -79,6 +79,7 @@ const RPC_STATUS_TIMEOUT_MS = 2500;
 const RPC_FORCE_REFRESH_TIMEOUT_MS = 5000;
 const RPC_RECOVERY_ATTEMPTS = 20;
 const RPC_RECOVERY_INTERVAL_MS = 500;
+const UPDATER_RECHECK_INTERVAL_MS = 5 * 60 * 1000;
 let rpcWaitingAnimationId = null;
 let rpcWaitingDots = 1;
 let rpcWaitingSinceMs = 0;
@@ -450,6 +451,31 @@ async function downloadUpdateAndRender() {
 async function initUpdaterBanner() {
     try {
         const status = await invoke('check_for_update');
+        console.info(
+            'Updater check result:',
+            JSON.stringify({
+                current_version: status?.current_version ?? null,
+                available_version: status?.available_version ?? null,
+                update_available: Boolean(status?.update_available),
+                target: status?.target ?? null,
+                dev_mode: Boolean(status?.dev_mode),
+                error: status?.error ?? null
+            })
+        );
+
+        if (status?.error) {
+            renderUpdaterState({
+                visible: true,
+                tone: 'failed',
+                messageKey: 'updater.failed',
+                actionKey: 'updater.retry_button',
+                actionVariant: 'icon-refresh',
+                showDismiss: true,
+                onDismiss: () => renderUpdaterState({ visible: false }),
+                onAction: initUpdaterBanner
+            });
+            return;
+        }
 
         if (!status?.update_available) {
             renderUpdaterState({ visible: false });
@@ -1438,6 +1464,14 @@ setInterval(() => {
         intervalMs: 400
     });
 }, 20000);
+
+setInterval(() => {
+    if (!updaterBusy) {
+        initUpdaterBanner().catch((err) => {
+            console.error('Scheduled updater check failed:', err);
+        });
+    }
+}, UPDATER_RECHECK_INTERVAL_MS);
 
 initApp();
 minuteTick();

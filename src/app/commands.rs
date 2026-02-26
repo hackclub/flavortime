@@ -55,6 +55,10 @@ pub struct DiscordStatus {
 pub struct UpdaterStatus {
     pub update_available: bool,
     pub dev_mode: bool,
+    pub current_version: String,
+    pub available_version: Option<String>,
+    pub target: Option<String>,
+    pub error: Option<String>,
 }
 
 struct HackatimeSnapshot {
@@ -454,13 +458,55 @@ pub fn set_adult_referral_code(state: State<AppState>, code: String) -> Result<(
 
 #[tauri::command]
 pub async fn check_for_update(app: AppHandle) -> Result<UpdaterStatus, String> {
-    let updater = app.updater().map_err(stringify)?;
-    let update_available = updater.check().await.map_err(stringify)?.is_some();
+    let current_version = app.package_info().version.to_string();
+    let dev_mode = cfg!(debug_assertions);
 
-    Ok(UpdaterStatus {
-        update_available,
-        dev_mode: cfg!(debug_assertions),
-    })
+    let updater = match app.updater() {
+        Ok(updater) => updater,
+        Err(err) => {
+            let error = stringify(err);
+            log::warn!("Updater unavailable: {error}");
+            return Ok(UpdaterStatus {
+                update_available: false,
+                dev_mode,
+                current_version,
+                available_version: None,
+                target: None,
+                error: Some(error),
+            });
+        }
+    };
+
+    match updater.check().await {
+        Ok(Some(update)) => Ok(UpdaterStatus {
+            update_available: true,
+            dev_mode,
+            current_version,
+            available_version: Some(update.version),
+            target: Some(update.target),
+            error: None,
+        }),
+        Ok(None) => Ok(UpdaterStatus {
+            update_available: false,
+            dev_mode,
+            current_version,
+            available_version: None,
+            target: None,
+            error: None,
+        }),
+        Err(err) => {
+            let error = stringify(err);
+            log::warn!("Update check failed: {error}");
+            Ok(UpdaterStatus {
+                update_available: false,
+                dev_mode,
+                current_version,
+                available_version: None,
+                target: None,
+                error: Some(error),
+            })
+        }
+    }
 }
 
 #[tauri::command]
