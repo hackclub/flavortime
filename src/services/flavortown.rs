@@ -124,6 +124,7 @@ pub async fn send_heartbeat(
     api_key: &str,
     session_id: &str,
     sharing_active_seconds_total: u64,
+    discord_status_seconds_total: u64,
     platform: &str,
     app_version: &str,
 ) -> Result<HeartbeatOutcome, String> {
@@ -135,6 +136,7 @@ pub async fn send_heartbeat(
     let payload = json!({
         "session_id": session_id,
         "sharing_active_seconds_total": sharing_active_seconds_total,
+        "discord_status_seconds_total": discord_status_seconds_total,
         "platform": platform,
         "app_version": app_version
     });
@@ -172,6 +174,7 @@ pub async fn close_session(
     api_key: &str,
     session_id: &str,
     sharing_active_seconds_total: u64,
+    discord_status_seconds_total: u64,
     platform: &str,
     app_version: &str,
 ) -> Result<CloseOutcome, String> {
@@ -180,6 +183,7 @@ pub async fn close_session(
     let payload = json!({
         "session_id": session_id,
         "sharing_active_seconds_total": sharing_active_seconds_total,
+        "discord_status_seconds_total": discord_status_seconds_total,
         "platform": platform,
         "app_version": app_version
     });

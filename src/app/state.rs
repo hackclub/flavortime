@@ -19,8 +19,9 @@ impl AppState {
 impl Default for AppState {
     fn default() -> Self {
         let mut config = Config::load();
-        if config.sharing_active_seconds_total != 0 {
+        if config.sharing_active_seconds_total != 0 || config.discord_status_seconds_total != 0 {
             config.sharing_active_seconds_total = 0;
+            config.discord_status_seconds_total = 0;
             let _ = config.save();
         }
 

@@ -10,10 +10,9 @@ use app::commands::{
     check_for_update, close_flavortime_session, close_flavortime_session_for_shutdown,
     download_update, force_refresh_discord, get_discord_status, get_hackatime_data, get_status,
     init_discord, login_as_adult, login_with_flavortown_api_key, logout, open_external,
-    refresh_referral_codes, restart_for_update, send_flavortown_heartbeat,
-    set_adult_referral_code, set_app_enabled, set_custom_referral_code, set_launch_at_startup,
-    set_selected_referral_code, set_show_referral_code, set_show_time_tracking,
-    update_discord_presence,
+    refresh_referral_codes, restart_for_update, send_flavortown_heartbeat, set_adult_referral_code,
+    set_app_enabled, set_custom_referral_code, set_launch_at_startup, set_selected_referral_code,
+    set_show_referral_code, set_show_time_tracking, update_discord_presence,
 };
 use app::state::AppState;
 use data::runtime::validate_startup_fields;
@@ -115,33 +114,33 @@ pub fn run() {
         .expect("error while building tauri application");
 
     app.run(move |app, event| {
-            if let tauri::RunEvent::ExitRequested { api, .. } = event {
-                let intercept_exit = app
-                    .try_state::<AppState>()
-                    .and_then(|state| {
-                        state.shutdown_requested.lock().ok().map(|mut requested| {
-                            if *requested {
-                                false
-                            } else {
-                                *requested = true;
-                                true
-                            }
-                        })
+        if let tauri::RunEvent::ExitRequested { api, .. } = event {
+            let intercept_exit = app
+                .try_state::<AppState>()
+                .and_then(|state| {
+                    state.shutdown_requested.lock().ok().map(|mut requested| {
+                        if *requested {
+                            false
+                        } else {
+                            *requested = true;
+                            true
+                        }
                     })
-                    .unwrap_or(false);
+                })
+                .unwrap_or(false);
 
-                if intercept_exit {
-                    api.prevent_exit();
-                    let app_handle = app.clone();
-                    tauri::async_runtime::spawn(async move {
-                        let _ = tokio::time::timeout(
-                            Duration::from_secs(3),
-                            close_flavortime_session_for_shutdown(&app_handle),
-                        )
-                        .await;
-                        app_handle.exit(0);
-                    });
-                }
+            if intercept_exit {
+                api.prevent_exit();
+                let app_handle = app.clone();
+                tauri::async_runtime::spawn(async move {
+                    let _ = tokio::time::timeout(
+                        Duration::from_secs(3),
+                        close_flavortime_session_for_shutdown(&app_handle),
+                    )
+                    .await;
+                    app_handle.exit(0);
+                });
             }
-        });
+        }
+    });
 }

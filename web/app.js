@@ -1489,6 +1489,8 @@ document.addEventListener('keydown', (event) => {
 bindExternalLinks();
 
 async function minuteTick() {
+    const heartbeatPromise = sendFlavortownHeartbeat();
+
     try {
         const status = await invoke('get_status');
         if (status.auth_mode === 'hackatime') {
@@ -1498,7 +1500,7 @@ async function minuteTick() {
         console.error('Refresh error:', err);
     }
 
-    await sendFlavortownHeartbeat();
+    await heartbeatPromise;
 }
 
 setInterval(minuteTick, 60000);

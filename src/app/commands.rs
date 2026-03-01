@@ -349,8 +349,10 @@ pub async fn get_hackatime_data(state: State<'_, AppState>) -> Result<HackatimeD
         }
     };
 
-    let should_accumulate = sharing_enabled && discord_connected && !snapshot.heartbeat_idle;
-    let sharing_active_seconds_total = accumulate_sharing_seconds(&state, should_accumulate)?;
+    let sharing_active = sharing_enabled && discord_connected && !snapshot.heartbeat_idle;
+    let status_active = sharing_enabled && discord_connected;
+    let (sharing_active_seconds_total, _) =
+        accumulate_seconds(&state, sharing_active, status_active)?;
 
     Ok(HackatimeData {
         current_project: snapshot.current_project,
@@ -362,12 +364,13 @@ pub async fn get_hackatime_data(state: State<'_, AppState>) -> Result<HackatimeD
 
 #[tauri::command]
 pub async fn send_flavortown_heartbeat(state: State<'_, AppState>) -> Result<u64, String> {
-    let (auth_mode, api_key, sharing_active_seconds_total) = {
+    let (auth_mode, api_key, sharing_active_seconds_total, discord_status_seconds_total) = {
         let cfg = lock(&state.config)?;
         (
             cfg.auth_mode.clone(),
             cfg.flavortown_api_key.clone(),
             cfg.sharing_active_seconds_total,
+            cfg.discord_status_seconds_total,
         )
     };
 
@@ -387,6 +390,7 @@ pub async fn send_flavortown_heartbeat(state: State<'_, AppState>) -> Result<u64
         &api_key,
         &session_id,
         sharing_active_seconds_total,
+        discord_status_seconds_total,
         metadata.platform,
         metadata.app_version,
     )
@@ -395,12 +399,19 @@ pub async fn send_flavortown_heartbeat(state: State<'_, AppState>) -> Result<u64
         flavortown::HeartbeatOutcome::ActiveUsers(count) => Ok(count),
         flavortown::HeartbeatOutcome::InvalidSessionId => {
             let session_id = rotate_flavortime_session_id(&state, &api_key).await?;
-            let sharing_total_after_rotate = lock(&state.config)?.sharing_active_seconds_total;
+            let (sharing_total_after_rotate, status_total_after_rotate) = {
+                let cfg = lock(&state.config)?;
+                (
+                    cfg.sharing_active_seconds_total,
+                    cfg.discord_status_seconds_total,
+                )
+            };
 
             match flavortown::send_heartbeat(
                 &api_key,
                 &session_id,
                 sharing_total_after_rotate,
+                status_total_after_rotate,
                 metadata.platform,
                 metadata.app_version,
             )
@@ -576,7 +587,8 @@ pub async fn download_update(app: AppHandle) -> Result<(), String> {
             move |chunk_len, content_len| {
                 downloaded_bytes = downloaded_bytes.saturating_add(chunk_len as u64);
                 if let Some(total) = content_len.filter(|value| *value > 0) {
-                    let percent = ((downloaded_bytes as f64 / total as f64) * 100.0).clamp(0.0, 100.0);
+                    let percent =
+                        ((downloaded_bytes as f64 / total as f64) * 100.0).clamp(0.0, 100.0);
                     let _ = progress_app.emit("updater-download-progress", percent);
                 }
             },
@@ -602,22 +614,40 @@ pub async fn close_flavortime_session_for_shutdown(app: &AppHandle) -> Result<()
     close_flavortime_session_from_state(&state, false).await
 }
 
-fn accumulate_sharing_seconds(state: &AppState, session_active: bool) -> Result<u64, String> {
+fn accumulate_seconds(
+    state: &AppState,
+    sharing_active: bool,
+    status_active: bool,
+) -> Result<(u64, u64), String> {
     let now = unix_now_secs();
     let mut last_tick = lock(&state.last_sharing_tick)?;
     let mut cfg = lock(&state.config)?;
 
     if let Some(previous) = *last_tick {
         let elapsed = now.saturating_sub(previous).min(120);
-        if elapsed > 0 && session_active {
-            cfg.sharing_active_seconds_total =
-                cfg.sharing_active_seconds_total.saturating_add(elapsed);
-            cfg.save()?;
+        if elapsed > 0 {
+            let mut changed = false;
+            if sharing_active {
+                cfg.sharing_active_seconds_total =
+                    cfg.sharing_active_seconds_total.saturating_add(elapsed);
+                changed = true;
+            }
+            if status_active {
+                cfg.discord_status_seconds_total =
+                    cfg.discord_status_seconds_total.saturating_add(elapsed);
+                changed = true;
+            }
+            if changed {
+                cfg.save()?;
+            }
         }
     }
 
     *last_tick = Some(now);
-    Ok(cfg.sharing_active_seconds_total)
+    Ok((
+        cfg.sharing_active_seconds_total,
+        cfg.discord_status_seconds_total,
+    ))
 }
 
 async fn fetch_hackatime_snapshot(slack_id: &str) -> Result<HackatimeSnapshot, String> {
@@ -675,12 +705,15 @@ async fn close_flavortime_session_from_state(
     clear_local_session: bool,
 ) -> Result<(), String> {
     let close_request = flavortime_close_request(state)?;
-    if let Some((api_key, session_id, sharing_active_seconds_total)) = close_request {
+    if let Some((api_key, session_id, sharing_active_seconds_total, discord_status_seconds_total)) =
+        close_request
+    {
         let metadata = flavortown::session_metadata();
         let active_users = match flavortown::close_session(
             &api_key,
             &session_id,
             sharing_active_seconds_total,
+            discord_status_seconds_total,
             metadata.platform,
             metadata.app_version,
         )
@@ -700,13 +733,16 @@ async fn close_flavortime_session_from_state(
     Ok(())
 }
 
-fn flavortime_close_request(state: &AppState) -> Result<Option<(String, String, u64)>, String> {
-    let (auth_mode, api_key, sharing_active_seconds_total) = {
+fn flavortime_close_request(
+    state: &AppState,
+) -> Result<Option<(String, String, u64, u64)>, String> {
+    let (auth_mode, api_key, sharing_active_seconds_total, discord_status_seconds_total) = {
         let cfg = lock(&state.config)?;
         (
             cfg.auth_mode.clone(),
             cfg.flavortown_api_key.clone(),
             cfg.sharing_active_seconds_total,
+            cfg.discord_status_seconds_total,
         )
     };
 
@@ -726,13 +762,19 @@ fn flavortime_close_request(state: &AppState) -> Result<Option<(String, String, 
         return Ok(None);
     };
 
-    Ok(Some((api_key, session_id, sharing_active_seconds_total)))
+    Ok(Some((
+        api_key,
+        session_id,
+        sharing_active_seconds_total,
+        discord_status_seconds_total,
+    )))
 }
 
 fn reset_sharing_session(state: &AppState) -> Result<(), String> {
     {
         let mut cfg = lock(&state.config)?;
         cfg.sharing_active_seconds_total = 0;
+        cfg.discord_status_seconds_total = 0;
         cfg.save()?;
     }
 

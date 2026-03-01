@@ -29,6 +29,7 @@ pub struct Config {
     pub launch_at_startup: bool,
     pub app_enabled: bool,
     pub sharing_active_seconds_total: u64,
+    pub discord_status_seconds_total: u64,
 }
 
 impl Default for Config {
@@ -45,6 +46,7 @@ impl Default for Config {
             launch_at_startup: false,
             app_enabled: true,
             sharing_active_seconds_total: 0,
+            discord_status_seconds_total: 0,
         }
     }
 }
@@ -96,7 +98,12 @@ impl Config {
 
     fn load_from_path(path: &Path) -> Option<Self> {
         let raw = fs::read_to_string(path).ok()?;
-        serde_json::from_str(&raw).ok()
+        let mut value = serde_json::from_str::<serde_json::Value>(&raw).ok()?;
+        let object = value.as_object_mut()?;
+        object
+            .entry("discord_status_seconds_total")
+            .or_insert_with(|| serde_json::Value::from(0_u64));
+        serde_json::from_value(value).ok()
     }
 
     fn preferred_code(&self) -> Option<String> {
