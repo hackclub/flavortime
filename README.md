@@ -16,3 +16,11 @@ You can download compiled executables on this [page](https://github.com/hackclub
 
 # Minimum Supported Rust Version
 - MSRV: Rust 1.88.0 (measured with `cargo msrv find`)
+
+# License
+This project is dual-licensed under either of:
+
+- MIT License ([LICENSE-MIT](LICENSE-MIT))
+- Apache License, Version 2.0 ([LICENSE-APACHE](LICENSE-APACHE))
+
+at your option.
