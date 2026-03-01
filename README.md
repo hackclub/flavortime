@@ -11,6 +11,13 @@ cargo install tauri-cli
 cargo tauri build # or cargo tauri dev
 ```
 
+# A Linux build note:
+```
+NO_STRIP=true cargo tauri build --no-sign
+```
+- `NO_STRIP=true` skips the binary stripping step, which can avoid `failed to run linuxdeploy` AppImage bundling failures if you are facing them. Context: [tauri-apps/tauri issue #8929](https://github.com/tauri-apps/tauri/issues/8929).
+- `--no-sign` fixes the error saying that `TAURI_SIGNING_PRIVATE_KEY` has not been set locally.
+
 # Where can I install it?
 You can download compiled executables on this [page](https://github.com/hackclub/flavortime/releases).
 

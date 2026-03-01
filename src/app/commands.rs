@@ -550,15 +550,17 @@ pub async fn check_for_update(app: AppHandle) -> Result<UpdaterStatus, String> {
 }
 
 #[tauri::command]
-pub async fn download_update(app: AppHandle) -> Result<(), String> {
-    #[cfg(target_os = "linux")]
-    {
-        return Err(
-            "Automatic updater is disabled on Linux. Please redownload from https://github.com/hackclub/flavortime"
-                .to_string(),
-        );
-    }
+#[cfg(target_os = "linux")]
+pub async fn download_update(_app: AppHandle) -> Result<(), String> {
+    Err(
+        "Automatic updater is disabled on Linux. Please redownload from https://github.com/hackclub/flavortime"
+            .to_string(),
+    )
+}
 
+#[tauri::command]
+#[cfg(not(target_os = "linux"))]
+pub async fn download_update(app: AppHandle) -> Result<(), String> {
     #[cfg(target_os = "macos")]
     {
         let current_exe = std::env::current_exe().map_err(stringify)?;
