@@ -12,7 +12,9 @@ use crate::services::{
 use serde::Serialize;
 use std::sync::{Mutex, MutexGuard};
 use std::time::{SystemTime, UNIX_EPOCH};
-use tauri::{AppHandle, Emitter, Manager, State};
+use tauri::{AppHandle, Manager, State};
+#[cfg(not(target_os = "linux"))]
+use tauri::Emitter;
 use tauri_plugin_autostart::ManagerExt;
 use tauri_plugin_updater::UpdaterExt;
 

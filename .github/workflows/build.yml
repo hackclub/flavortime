@@ -7,8 +7,65 @@ on:
       - main
 
 jobs:
+  skipbuild-flags:
+    runs-on: ubuntu-latest
+    outputs:
+      skip_all: ${{ steps.parse.outputs.skip_all }}
+      skip_osx: ${{ steps.parse.outputs.skip_osx }}
+      skip_win: ${{ steps.parse.outputs.skip_win }}
+      skip_lin: ${{ steps.parse.outputs.skip_lin }}
+    steps:
+      - name: Parse skipbuild flags from commit message
+        id: parse
+        env:
+          COMMIT_MESSAGE: ${{ github.event_name == 'push' && github.event.head_commit.message || '' }}
+        run: |
+          message_lc="$(printf '%s' "$COMMIT_MESSAGE" | tr '[:upper:]' '[:lower:]')"
+
+          skip_all=false
+          skip_osx=false
+          skip_win=false
+          skip_lin=false
+
+          while IFS= read -r token; do
+            [[ -z "$token" ]] && continue
+            if [[ "$token" == "skipbuild" ]]; then
+              skip_all=true
+              continue
+            fi
+
+            if [[ "$token" == skipbuild-* ]]; then
+              csv="${token#skipbuild-}"
+              IFS=',' read -r -a parts <<< "$csv"
+              for part in "${parts[@]}"; do
+                case "$part" in
+                  osx|mac|macos) skip_osx=true ;;
+                  win|windows) skip_win=true ;;
+                  lin|linux) skip_lin=true ;;
+                esac
+              done
+            fi
+          done < <(printf '%s' "$message_lc" | grep -oE 'skipbuild(-[a-z,]+)?' || true)
+
+          if [[ "$skip_all" == "true" ]]; then
+            skip_osx=true
+            skip_win=true
+            skip_lin=true
+          fi
+
+          echo "skip_all=$skip_all" >> "$GITHUB_OUTPUT"
+          echo "skip_osx=$skip_osx" >> "$GITHUB_OUTPUT"
+          echo "skip_win=$skip_win" >> "$GITHUB_OUTPUT"
+          echo "skip_lin=$skip_lin" >> "$GITHUB_OUTPUT"
+
   build-macos:
-    if: "${{ github.event_name != 'push' || !startsWith(github.event.head_commit.message, 'release: v') }}"
+    needs: skipbuild-flags
+    if: >
+      ${{
+        (github.event_name != 'push' || !startsWith(github.event.head_commit.message || '', 'release: v')) &&
+        needs.skipbuild-flags.outputs.skip_all != 'true' &&
+        needs.skipbuild-flags.outputs.skip_osx != 'true'
+      }}
     runs-on: macos-14
     steps:
       - uses: actions/checkout@v4
@@ -67,7 +124,13 @@ jobs:
             target/universal-apple-darwin/release/bundle/**/*.tar.gz
 
   build-windows:
-    if: "${{ github.event_name != 'push' || !startsWith(github.event.head_commit.message, 'release: v') }}"
+    needs: skipbuild-flags
+    if: >
+      ${{
+        (github.event_name != 'push' || !startsWith(github.event.head_commit.message || '', 'release: v')) &&
+        needs.skipbuild-flags.outputs.skip_all != 'true' &&
+        needs.skipbuild-flags.outputs.skip_win != 'true'
+      }}
     runs-on: blacksmith-4vcpu-windows-2025
     steps:
       - uses: actions/checkout@v4
@@ -128,7 +191,13 @@ jobs:
             target/x86_64-pc-windows-msvc/release/bundle/**/*.zip
 
   build-linux:
-    if: "${{ github.event_name != 'push' || !startsWith(github.event.head_commit.message, 'release: v') }}"
+    needs: skipbuild-flags
+    if: >
+      ${{
+        (github.event_name != 'push' || !startsWith(github.event.head_commit.message || '', 'release: v')) &&
+        needs.skipbuild-flags.outputs.skip_all != 'true' &&
+        needs.skipbuild-flags.outputs.skip_lin != 'true'
+      }}
     runs-on: blacksmith-4vcpu-ubuntu-2404
     steps:
       - uses: actions/checkout@v4
