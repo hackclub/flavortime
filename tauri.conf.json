@@ -1,6 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Flavortime",
+  "mainBinaryName": "Flavortime",
   "version": "1.1.1",
   "identifier": "com.hackclub.flavortime",
   "build": {
@@ -26,6 +27,8 @@
     "active": true,
     "createUpdaterArtifacts": true,
     "targets": "all",
+    "shortDescription": "Discord Rich Presence for Flavortown and Hack Club's referral program",
+    "longDescription": "Flavortime is a desktop app that integrates Discord Rich Presence with Flavortown and Hack Club's referral program.",
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
