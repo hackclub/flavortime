@@ -4,6 +4,15 @@ A Rust desktop app for Discord Rich Presence with Flavortown and Hack Club's ref
 # What is Flavortown?
 Check out https://flavortown.hackclub.com!
 
+# But what exactly does this app do?
+This app shows a rich presence for Discord that describes Flavortown and shows a button for other people to sign-up, which leads to a url with your referral code.
+Example:
+
+<img width="432" height="176" alt="image" src="https://github.com/user-attachments/assets/2b3db83d-7791-4706-8cc4-8ef4c1715f4d" />
+
+> [!NOTE]
+> The "Sign up" button only shows for other people, not for yourself.
+
 # How do I build it?
 ```
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh # install the relevant toolchains
