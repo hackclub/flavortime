@@ -229,7 +229,7 @@ impl DiscordPresenceManager {
 
         let text = rich_presence_text();
         let referral_host = non_empty_trimmed(Some(text.referral_host.as_str()))
-            .unwrap_or("pyramid.hackclub.com");
+            .unwrap_or("flavortown.hack.club");
         let referral_code = non_empty_trimmed(self.state.referral.as_deref());
         let referral_url = match referral_code {
             Some(code) => format!("https://{referral_host}/{code}"),
